@@ -79,15 +79,12 @@ int insertInFile(bufferEntry * buffer, int fd, int *startOffset, int *endOffset,
     {
         isFilled += buffer[i].isFilled;
     }
-    // printf("\nisFilledCount : %d\n", isFilled);
     if((isFilled == BUFSIZE) || doWrite)
     {
         if(doWrite == 1 && !checkContiguity(buffer))
         {
             return fd;
         }
-        // printf("In Here\n");
-        // lseek(fd, *startOffset, SEEK_SET);
         for(int i=0; i<BUFSIZE; i++)
         {
             if(buffer[i].isFilled == 1)
@@ -98,7 +95,6 @@ int insertInFile(bufferEntry * buffer, int fd, int *startOffset, int *endOffset,
             }
             buffer[i].isFilled = 0;
         }
-        // printf("AM here\n");
         if(doWrite == 0)
         {
             (*startOffset) = (*endOffset) + 1;
@@ -150,64 +146,68 @@ int main()
     sem_t *sem;
     int * offsets;
     bufferEntry *buffer;
-    // printf("%ld\n", sizeof(bufferEntry));
+
     //NOTE: Althought /dev/null exists on almost all UNIX systems, please verify once that it exists
-    shmkey = ftok("/dev/null", 4664);
+    shmkey = ftok("/dev/null", FTOK_KEY1);
+    // printf("%d\n", shmkey);
     if(shmkey < 0)
         die("ftok() 1");
-    shmkeyOffset = ftok("/dev/null", 2345);
+    shmkeyOffset = ftok("/dev/null", FTOK_KEY2);
     if(shmkeyOffset < 0)
         die("ftok() 2");
+    
     //Either the shared memory already exists (probably program crashed and couldn't detach it) or some other error
-    shmid = shmget(shmkey, sizeof(bufferEntry)*BUFSIZE, 0644 | IPC_CREAT | IPC_EXCL);
+    shmid = shmget(shmkey, sizeof(bufferEntry)*BUFSIZE, 0644 | IPC_CREAT);
     if(shmid < 0)
     {
-        //Memory exists
-        if(errno == EEXIST)
-        {
-            //Detach the memory
-            shmdt(buffer);
-            shmctl(shmid, IPC_RMID, 0);  
-
-            //Get fresh memory 
-            shmid = shmget(shmkey, sizeof(bufferEntry)*BUFSIZE, 0644 | IPC_CREAT | IPC_EXCL);
-        }
-        else
-            die("shmget()");
+        // //Memory exists
+        // if(errno == EEXIST)
+        // {
+        //     //memory
+        //     printf("EXISTS 1\n");
+        //     shmid = shmget(shmkey, 0, IPC_CREAT);
+        //     if(shmid < 0)
+        //         die("shmget(2)");
+        // }
+        // else
+        die("shmget()");
     }
-    shmidOffset = shmget(shmkeyOffset, sizeof(int)*2, 0644 | IPC_CREAT | IPC_EXCL);
+    shmidOffset = shmget(shmkeyOffset, sizeof(int)*2, 0644 | IPC_CREAT);
     if(shmidOffset < 0)
     {
-        //Memory exists
-        if(errno == EEXIST)
-        {
-            //Detach the memory
-            shmdt(offsets);
-            shmctl(shmidOffset, IPC_RMID, 0);  
-
-            //Get fresh memory 
-            shmidOffset = shmget(shmkeyOffset, sizeof(int)*2, 0644 | IPC_CREAT | IPC_EXCL);
-        }
-        else
-            die("shmget()");
+        // //Memory exists
+        // if(errno == EEXIST)
+        // {
+        //     //Get fresh memory 
+        //     printf("EXISTS 2\n");
+        //     shmidOffset = shmget(shmkeyOffset, sizeof(int)*2, 0644 | IPC_CREAT);
+        //     if(shmidOffset < 0)
+        //         die("shmget(2)");
+        // }
+        // else
+        die("shmget()");
     }
     //Get the pointer to memory in shdata
     buffer = (bufferEntry *)shmat(shmid, NULL, 0);
     offsets = (int *)shmat(shmidOffset, NULL, 0);
     //Now, we are ready to initialize our shared semaphore with initial value 1
     
-    sem = sem_open ("sempServer", O_CREAT | O_EXCL, 0644, 1); 
+    sem = sem_open ("sempSer", O_CREAT, 0644, 1); 
     if(sem == NULL)
     {
         //Semaphore with same name "sempServer" already exists
         if(errno == EEXIST)
         {
             //Unlink the semaphore
-            sem_unlink("sempServer");
+            shmdt(buffer);
+            shmctl(shmid, IPC_RMID, 0);
+            shmdt(offsets);
+            shmctl(shmidOffset, IPC_RMID, 0);
+            sem_unlink("sempSer");
             sem_close(sem);
 
             //Now, create a fresh semaphore
-            sem = sem_open ("sempServer", O_CREAT | O_EXCL, 0644, 1); 
+            sem = sem_open ("sempSer", O_CREAT, 0644, 1); 
         }
         else
             die("sem_open()");
@@ -223,7 +223,7 @@ int main()
     //Fork failed, release resources, exit
     if(pid < 0)
     {
-        sem_unlink("sempServer");
+        sem_unlink("sempSer");
         sem_close(sem);
         die("fork()\n");
     }
@@ -243,7 +243,7 @@ int main()
         shmctl(shmid, IPC_RMID, 0);
         shmdt(offsets);
         shmctl(shmidOffset, IPC_RMID, 0);
-        sem_unlink("sempServer");
+        sem_unlink("sempSer");
         sem_close(sem);
         die("accept()\n");
     }
@@ -255,7 +255,7 @@ int main()
         shmctl(shmid, IPC_RMID, 0);
         shmdt(offsets);
         shmctl(shmidOffset, IPC_RMID, 0);
-        sem_unlink("sempServer");
+        sem_unlink("sempSer");
         sem_close(sem);
         die("close(listenSkt)\n");
     }
@@ -282,7 +282,7 @@ int main()
             shmctl(shmid, IPC_RMID, 0);
             shmdt(offsets);
             shmctl(shmidOffset, IPC_RMID, 0);
-            sem_unlink("sempServer");
+            sem_unlink("sempSer");
             sem_close(sem);
             if(bytesRcvd == 0)
             {
@@ -306,23 +306,17 @@ int main()
         rcvPkt.seqNo, rcvPkt.sizeOfPayload, rcvPkt.channelID);
 
         //offset is where to write the data
-        // offset = rcvPkt.seqNo;
+        offset = rcvPkt.seqNo;
 
 
         //(Similar to client)
         sem_wait(sem);
-        // printf("BEFORE: %d %d %d\n", offsets[0], offsets[1], rcvPkt.seqNo);
-        // printf("Entered\n");
         if(checkCompatibility(offsets[0], offsets[1], rcvPkt.seqNo) == 1)
         {
-            // printf("PKT REJECTED: Seq. No %d of size %d bytes from channel %d\n",
-            // rcvPkt.seqNo, rcvPkt.sizeOfPayload, rcvPkt.channelID);
-            insertInBuffer(buffer, offsets[0], &rcvPkt);
-            fd = insertInFile(buffer, fd, &offsets[0], &offsets[1], rcvPkt.isLastPkt);
-            // printf("AFTER: %d %d %d\n", offsets[0], offsets[1], rcvPkt.seqNo);
-            // lseek(fd, offset, SEEK_SET);
-            // size_written = write(fd, rcvPkt.payload, rcvPkt.sizeOfPayload);
-            // printf("Exited\n");
+            // insertInBuffer(buffer, offsets[0], &rcvPkt);
+            // fd = insertInFile(buffer, fd, &offsets[0], &offsets[1], rcvPkt.isLastPkt);
+            lseek(fd, offset, SEEK_SET);
+            write(fd, rcvPkt.payload, rcvPkt.sizeOfPayload);
         }
         else if(rcvPkt.seqNo > offsets[1])
         {
@@ -349,17 +343,13 @@ int main()
             shmctl(shmid, IPC_RMID, 0);
             shmdt(offsets);
             shmctl(shmidOffset, IPC_RMID, 0);
-            sem_unlink("sempServer");
+            sem_unlink("sempSer");
             sem_close(sem);
             die("send()\n");
         }
 
         printf("SENT ACK: For PKT with Seq. No. %d from channel %d\n",
         sndPkt.seqNo, sndPkt.channelID);
-
-        //If the received pkt was the last packet, exit
-        // if(rcvPkt.isLastPkt == 1)
-        //     break;
     }
     
     //Close the connection socket
@@ -369,7 +359,7 @@ int main()
         shmctl(shmid, IPC_RMID, 0);
         shmdt(offsets);
         shmctl(shmidOffset, IPC_RMID, 0);
-        sem_unlink("sempServer");
+        sem_unlink("sempSer");
         sem_close(sem);
         die("close(connSkt)\n");
     }
@@ -381,7 +371,7 @@ int main()
         shmctl(shmid, IPC_RMID, 0);
         shmdt(offsets);
         shmctl(shmidOffset, IPC_RMID, 0);
-        sem_unlink("sempServer");
+        sem_unlink("sempSer");
         sem_close(sem);
         exit(0);
     }
