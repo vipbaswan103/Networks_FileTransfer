@@ -51,40 +51,7 @@ int main()
     lseek(fd, 0, SEEK_SET);
 
     sem_t *sem;
-    /*
-    //For synch, semaphores need to be defined
-    //Becuase of fork(), we'll need to put semaphore in shared memory
-    key_t shmkey;
-    int shmid;
-    
-    int * shdata;
-
-    //NOTE: Althought /dev/null exists on almost all UNIX systems, please verify once that it exists
-    shmkey = ftok("/dev/null", 10);
-    if(shmkey < 0)
-        die("ftok()");
-    shmid = shmget(shmkey, sizeof(int), 0644 | IPC_CREAT | IPC_EXCL);
-
-    //Either the shared memory already exists (probably program crashed and couldn't detach it) or some other error
-    if(shmid < 0)
-    {
-        //Memory exists
-        if(errno == EEXIST)
-        {
-            //Detach the memory
-            shmdt(shdata);
-            shmctl(shmid, IPC_RMID, 0);   
-
-            //Get fresh memory
-            shmid = shmget(shmkey, sizeof(int), 0644 | IPC_CREAT | IPC_EXCL);
-        }
-        else
-            die("shmget()");
-    }
-    //Get the pointer to memory in shdata
-    shdata = (int *)shmat(shmid, NULL, 0);
-    */
-    //Now, we are ready to initialize our shared semaphore with initial value 1
+    //Now, we initialize our shared semaphore with initial value 1
     sem = sem_open ("semp", O_CREAT | O_EXCL, 0644, 1); 
     if(sem == NULL)
     {
@@ -124,8 +91,6 @@ int main()
     //Create the socket
     if((skt = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
     {
-        // shmdt(shdata);
-        // shmctl(shmid, IPC_RMID, 0);
         sem_unlink("semp");
         sem_close(sem);
         die("socket()");
@@ -134,8 +99,6 @@ int main()
     //Connect the socket to the server
     if(connect(skt, (struct sockaddr*) &si_other, slen) < 0)
     {
-        // shmdt(shdata);
-        // shmctl(shmid, IPC_RMID, 0);
         sem_unlink("semp");
         sem_close(sem);
         die("connect()");
@@ -160,10 +123,6 @@ int main()
         sem_wait(sem);
         offset = lseek(fd, 0, SEEK_CUR);
         size_read = read(fd, sndPkt.payload, PACKET_SIZE);
-        // if(pid > 0)
-        //     printf("%d %d Channel 0\n", offset, size_read);
-        // else
-        //     printf("%d %d Channel 1\n", offset, size_read);
         sem_post(sem);
         
         //EOF is reached, exit gracefully
@@ -172,8 +131,6 @@ int main()
             //If parent, deallocate the shared resources
             if(pid > 0)
             {
-                // shmdt(shdata);
-                // shmctl(shmid, IPC_RMID, 0);
                 sem_unlink("semp");
                 sem_close(sem);
             }
@@ -195,8 +152,6 @@ int main()
             //There was some problem in read()
             if(size_read < 0)
             {
-                // shmdt(shdata);
-                // shmctl(shmid, IPC_RMID, 0);
                 sem_unlink("semp");
                 sem_close(sem);
                 die("read()");
@@ -215,8 +170,6 @@ int main()
 
         if(bytesSent != sizeof(sndPkt))
         {
-            // shmdt(shdata);
-            // shmctl(shmid, IPC_RMID, 0);
             sem_unlink("semp");
             sem_close(sem);
             die("send()");
@@ -242,15 +195,13 @@ int main()
 
                 //Send the data pkt again
                 bytesSent = send(skt, &cpySndPkt, sizeof(cpySndPkt), 0);
-                if(bytesSent != sizeof(cpySndPkt))
+                if(bytesSent != sizeof(tmp))
                 {
-                    // shmdt(shdata);
-                    // shmctl(shmid, IPC_RMID, 0);
                     sem_unlink("semp");
                     sem_close(sem);
                     die("send()");
                 }
-                printf("SENT PKT: Seq. No %d of size %d bytes from channel %d\n", 
+                printf("RESENT PKT: Seq. No %d of size %d bytes from channel %d\n", 
                 tmp.seqNo, tmp.sizeOfPayload, tmp.channelID);
                 makeCopy(&cpySndPkt, tmp);
                 numTrans++;
@@ -260,11 +211,9 @@ int main()
             else if(nready > 0)
             {
                 memset((char *)&rcvPkt, 0, sizeof(rcvPkt));
-                bytesRcvd = recv(skt, &rcvPkt, sizeof(rcvPkt), 0);
+                bytesRcvd = recv(skt, &rcvPkt, sizeof(rcvPkt), MSG_WAITALL);
                 if(bytesRcvd <= 0)
                 {
-                    // shmdt(shdata);
-                    // shmctl(shmid, IPC_RMID, 0);
                     sem_unlink("semp");
                     sem_close(sem);
 
@@ -278,6 +227,11 @@ int main()
                 else    //you got the correct ack, move out of the loop
                     break;
             }
+            else
+            {
+                die("poll()");
+            }
+            
         }
         
         if(numTrans > MAX_ATTEMPTS)
@@ -288,8 +242,6 @@ int main()
         //It is the ACK for the last pkt sent to the server, everything is done, exit
         if(rcvPkt.isLastPkt == 1)
         {
-            // shmdt(shdata);
-            // shmctl(shmid, IPC_RMID, 0);
             sem_unlink("semp");
             sem_close(sem);
             exit(0);
@@ -299,8 +251,6 @@ int main()
     //Close the connection skt
     if(close(skt) < 0)
     {
-        // shmdt(shdata);
-        // shmctl(shmid, IPC_RMID, 0);
         sem_unlink("semp");
         sem_close(sem);
         die("close(skt)");
@@ -309,8 +259,6 @@ int main()
     //If parent process, deallocate shared resources
     if(pid > 0)
     {
-        // shmdt(shdata);
-        // shmctl(shmid, IPC_RMID, 0);
         sem_unlink("semp");
         sem_close(sem);
         exit(0);

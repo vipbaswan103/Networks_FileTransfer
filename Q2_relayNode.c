@@ -23,6 +23,26 @@ char * timeStamp()
     strcat(stamp, milliSec);
     return stamp;
 }
+int msleep(long msec)
+{
+    struct timespec ts;
+    int res;
+
+    if (msec < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}
 //For making a deep copy of the pkt (may be needed later for retransmissions)
 void makeCopy(PKT * cpy, PKT sndPkt)
 {
@@ -100,10 +120,21 @@ int main(int argc, char * argv[])
         // bytesRcvd = recvfrom(skt, &rcvPkt, sizeof(rcvPkt), 0, NULL, NULL);
         if(bytesRcvd <= 0)
             die("recvfrom()");
-        randNum = rand()%100;
+        
+        // if(bytesRcvd != sizeof(PKT))
+        // {
+        //     printf("BYE!! I am out\n");
+        //     exit(0);
+        // }
 
+        randNum = rand()%3;
+        msleep(randNum);
+
+        randNum = rand()%100;
         if(testForDrop(randNum) && rcvPkt.isData == 1)
         {
+            if(!strcmp(rcvPkt.dest, "CLIENT"))
+                printf("PROBLEM\n");
             if(atoi(argv[1]) == 1)
                 fprintf(fp, "%10s %10s %20s %10s %10d %10s %10s\n", 
                 "RELAY1", "D", timeStamp(), "DATA", rcvPkt.seqNo, rcvPkt.src, "RELAY1");

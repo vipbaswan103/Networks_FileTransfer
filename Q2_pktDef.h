@@ -18,8 +18,8 @@
 #include <time.h>   //for time(NULL) which will be used to seed rand()
 #include <sys/time.h>
 
-#define PACKET_SIZE 5000
-#define BUFFERSIZE 20     //Indicates the size of the buffer in terms of data packets
+#define PACKET_SIZE 100
+#define BUFFERSIZE 10    //Indicates the size of the buffer in terms of data packets
 #define PORT_RELAY1 8881    //PORT of the relay node 1
 #define PORT_RELAY2 8882    //PORT of the relay node 2
 #define PORT_SERVER 8883    //PORT of the server
@@ -30,7 +30,7 @@
                         //(just for formality, not needed in our case)
 #define PDR 70  //Packet Drop Rate
 #define MAX_ATTEMPTS 1000 //Maximum number of retransmission before leaving any hope of transmission
-#define WINDOW_SIZE 5
+#define WINDOW_SIZE 4
 
 typedef struct bufferEntry
 {

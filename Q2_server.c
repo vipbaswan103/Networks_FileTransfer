@@ -230,7 +230,7 @@ int main()
 
         makeCopy(&cpySendPkt, sendPkt);
         makeCopy(&cpyRcvPkt, rcvPkt);
-        bytesSent = sendto(skt, &sendPkt, sizeof(sendPkt), 0, (struct sockaddr *)&si_rcv, slen);
+        bytesSent = sendto(skt, &sendPkt, sizeof(sendPkt), 0, (struct sockaddr *)&si_rcv, slenR);
         if(bytesSent < 0)
             die("sendto()");
         

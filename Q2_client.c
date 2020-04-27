@@ -76,7 +76,10 @@ int main()
         die("bind()");
     PKT sndPkt[WINDOW_SIZE], rcvPkt, cpySndPkt[WINDOW_SIZE], tmp;
     int offset, size_read, bytesSent, bytesRcvd, nready, isACKed[WINDOW_SIZE], fileOffsetStart, fileOffsetEnd,
-    numAcked, sentPkts;
+    numAcked, sentPkts, file_size;
+
+    file_size = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
     FILE * fp = fopen("log_client.txt", "w");
     if(fp == NULL)
         die("fopen()\n");
@@ -106,16 +109,21 @@ int main()
                 }
                 break;
             }
+            offset = lseek(fd, 0, SEEK_CUR);
+            if(offset == file_size)
+                sndPkt[i].isLackPkt = 1;
+            
             if(size_read != PACKET_SIZE)
             {
                 if(size_read < 0)
                     die("read()");
-                else
+                else if(size_read < PACKET_SIZE)
                 {
                     sndPkt[i].isLackPkt = 1;
                     sndPkt[i].sizeOfPayload = size_read;
                 }
             }
+            
             makeCopy(&cpySndPkt[i], sndPkt[i]);
             bytesSent = sendto(skt, &sndPkt[i], sizeof(sndPkt[i]), 0, 
             (struct sockaddr *)&si_other[i%2], slen);
@@ -146,6 +154,7 @@ int main()
         fileOffsetEnd = sndPkt[sentPkts-1].seqNo;
 
         //Now wait for ACKs for all the packets
+        printf("WINDOW SIZE:\t%d\t%d\n",fileOffsetStart, fileOffsetEnd);
         while(1)
         {
             nready = poll(clients, 1, TIMEOUT);
@@ -229,6 +238,12 @@ int main()
                             printf("%10s %10s %20s %10s %10d %10s %10s\n",
                             "CLIENT", "R", timeStamp(), "ACK", rcvPkt.seqNo, rcvPkt.src, rcvPkt.dest);
                         }
+                        else
+                        {
+                            printf("%10s %10s %20s %10s %10d %10s %10s\n",
+                            "CLIENT", "OUTORDER", timeStamp(), "ACK", rcvPkt.seqNo, rcvPkt.src, rcvPkt.dest);
+                        }
+                        
                     }
                     //Nothing else is available, now check whether everything in the window is ACKed yet or not
                     //If not, again continue in the outer loop
