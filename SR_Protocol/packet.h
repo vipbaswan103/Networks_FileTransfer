@@ -1,5 +1,5 @@
-#ifndef Q2_PKTDEF_H
-#define Q2_PKTDEF_H
+#ifndef PACKET_H_
+#define PACKET_H_
 
 #include <stdio.h>
 #include <sys/socket.h> //for socket(), connect(), send(), recv() functions
@@ -23,15 +23,17 @@
 #define PORT_RELAY1 8881    //PORT of the relay node 1
 #define PORT_RELAY2 8882    //PORT of the relay node 2
 #define PORT_SERVER 8883    //PORT of the server
-#define PORT_CLIENT 8884
+#define PORT_CLIENT 8884 
 #define IP "127.0.0.1"  //IP address of the server process
-#define TIMEOUT 1000 //Timeout (in ms)
+#define TIMEOUT 100 //Timeout (in ms)
+#define PDR 10  //Packet Drop Rate
+#define WINDOW_SIZE 5
+
+#define MAX_ATTEMPTS 1000 //Maximum number of retransmission before leaving any hope of transmission
 #define MAXPENDING 10   //Maximum number of processes that can be waiting for connection from server 
                         //(just for formality, not needed in our case)
-#define PDR 70  //Packet Drop Rate
-#define MAX_ATTEMPTS 1000 //Maximum number of retransmission before leaving any hope of transmission
-#define WINDOW_SIZE 4
 
+//Description similar to ques 1
 typedef struct bufferEntry
 {
     int isFilled;
@@ -46,8 +48,8 @@ typedef struct pkt
     int seqNo;          //Sequence Number: First byte of the payload being transferred
     int isLackPkt;      //1 if its the last data/ACK pkt
     int isData;         //1 if the pkt is data pkt
-    char src[10];       //Name of the src
-    char dest[10];      //Name of the destination
+    char src[10];       //Name of the src (Used in routing)
+    char dest[10];      //Name of the destination (Used in routing)
     char payload[PACKET_SIZE];  //Memory for the payload
 } PKT;
 

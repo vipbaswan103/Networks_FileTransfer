@@ -1,4 +1,4 @@
-#include "Q1_pktDef.h"
+#include "packet.h"
 
 //To throw errors
 void die(char * error)
@@ -163,6 +163,13 @@ int main()
                 sndPkt.sizeOfPayload = size_read;
             }
         }
+
+        sem_wait(sem);
+        offset = lseek(fd, 0, SEEK_CUR);
+        if(offset == file_size)
+            sndPkt.isLastPkt = 1;
+            // printf("Here\n");
+        sem_post(sem);
 
         //Save the packer for future use in cpySndPkt
         makeCopy(&cpySndPkt, sndPkt);

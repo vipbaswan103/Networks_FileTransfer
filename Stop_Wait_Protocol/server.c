@@ -1,4 +1,4 @@
-#include "Q1_pktDef.h"
+#include "packet.h"
 
 //To throw errors
 void die(char * error)
@@ -83,7 +83,7 @@ void insertInFile(bufferEntry * buffer, int fd, int *startOffset, int *endOffset
         {
             return;
         }
-        printf("HERE\n");
+        // printf("HERE\n");
         for(int i=0; i<BUFSIZE; i++)
         {
             if(buffer[i].isFilled == 1)
@@ -132,21 +132,23 @@ int main()
     if((listenSkt = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
         die("socket()\n");
     
+    printf("Listening socket opened...\n");
     //Bind the socket to server's IP and PORT
     if(bind(listenSkt, (struct sockaddr*)&si_me, slen) == -1)
         die("bind()\n");
     
+    printf("Binding of listening socket done...\n");
     //Mark the port as listerning for connections
     if(listen(listenSkt, MAXPENDING) == -1)
         die("listen()\n");
     
+    printf("Listening...\n");
     bufferEntry buffer[BUFSIZE];
     int startOffset, endOffset;
     initializeBuffer(buffer, &startOffset, &endOffset);
 
     clients[0].fd = listenSkt;
     clients[0].events = POLLIN;
-    printf("HELLO\n");
     int howMany = 1, howManyExitted = 0;
     while(1)
     {
@@ -161,9 +163,11 @@ int main()
             //There is something to accept
             if(clients[0].revents & POLLIN)
             {
+                printf("New connection request...\n");
                 connSkt = accept(listenSkt, (struct sockaddr*)&si_other, &clen);
                 if(connSkt < 0)
                     die("accept()");
+                printf("Connection request accepted, connection socket opened...\n");
                 clients[howMany].fd = connSkt;
                 clients[howMany].events = POLLIN;
                 howMany++;
@@ -183,7 +187,7 @@ int main()
                 {
                     if(bytesRcvd == 0)
                     {
-                        printf("Here\n");
+                        // printf("Here\n");
                         // insertInFile(buffer, fd, &startOffset, &endOffset, 1);
                         //make fd < 0
                         if(clients[1].revents & POLLIN)
