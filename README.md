@@ -80,6 +80,7 @@ The project is to code a program which allows a client to upload file to a serve
   1. `make`
   2. `./server` (In one instance of terminal)
   3. `./client` (In another instance of terminal)
+  
   Refer to the `Note` and `Reading the log` sections of [multi-channel stop-and-wait protocol](Stop_Wait_Protocol/readme.txt) for more details.
   
 - **SR protocol over UDP**
@@ -88,7 +89,9 @@ The project is to code a program which allows a client to upload file to a serve
   3. `./relay 1`   (To run relay node 1)
   4. `./relay 2`   (To run relay node 2)
   5. `./client`
+  
   Run (ii)-(v) on separate terminal instances.
+  
   Refer to the `Note` and `Reading the log` sections of [SR protocol over UDP](SR_Protocol/readme.txt) for more details.
 
 ## Tests [[Index](#index)]
